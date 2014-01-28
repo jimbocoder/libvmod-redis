@@ -65,6 +65,24 @@ Sends the given `command` to redis; any response will be returned as a string.
 set req.http.x-redis = redis.call("LTRIM client 0 99");
 ```
 
+### redis.pipeline
+
+```
+redis.pipeline()
+```
+
+creates a redis pipeline.  redis.push(cmd) to push commands. then redis.pop() to retrieve
+
+**Example:**
+
+```
+redis.pipeline();
+redis.push("get your:special:key");
+redis.push("incr your:special:counter");
+set req.http.special_key = redis.pop();
+set req.http.special_counter = redis.pop();
+```
+
 Examples
 --------
 

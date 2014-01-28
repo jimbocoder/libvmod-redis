@@ -204,3 +204,94 @@ done:
 
 	return ret;
 }
+
+void
+vmod_pipeline(struct sess *sp, struct vmod_priv *priv)
+{
+	config_t *cfg = priv->priv;
+	redisContext *c;
+
+	LOG_T("redis(%x): pipeline %p\n", pthread_self(), priv->priv);
+
+	if ((c = pthread_getspecific(redis_key)) == NULL) {
+		c = redisConnect(cfg->host, cfg->port);
+		if (c->err) {
+			LOG_E("redis error (connect): %s\n", c->errstr);
+		}
+		(void)pthread_setspecific(redis_key, c);
+	}
+
+	if (c->err == REDIS_ERR_EOF) {
+		c = redisConnectWithTimeout(cfg->host, cfg->port, cfg->timeout);
+		if (c->err) {
+			LOG_E("redis error (reconnect): %s\n", c->errstr);
+			redisFree(c);
+		} else {
+			redisFree(pthread_getspecific(redis_key));
+			(void)pthread_setspecific(redis_key, c);
+		}
+	}
+}
+
+void
+vmod_push(struct sess *sp, struct vmod_priv *priv, const char *command)
+{
+	redisContext *c;
+
+	LOG_T("redis(%x): push %s %p\n", pthread_self(), command, priv->priv);
+
+	c = pthread_getspecific(redis_key);
+	redisAppendCommand(c, command);
+}
+
+const char *
+vmod_pop(struct sess *sp, struct vmod_priv *priv)
+{
+	redisReply *reply;
+	const char *ret = NULL;
+	char *digits;
+	redisContext *c;
+
+	LOG_T("redis(%x): pop %p\n", pthread_self(), priv->priv);
+
+	c = pthread_getspecific(redis_key);
+	redisGetReply(c,&reply);
+
+	if (reply == NULL) {
+		LOG_E("redis error (command): err=%d errstr=%s\n", c->err, c->errstr);
+		goto done;
+	}
+
+	switch (reply->type) {
+	case REDIS_REPLY_STATUS:
+		ret = WS_Dup(sp->ws, reply->str);
+		break;
+	case REDIS_REPLY_ERROR:
+		ret = WS_Dup(sp->ws, reply->str);
+		break;
+	case REDIS_REPLY_INTEGER:
+		digits = WS_Alloc(sp->ws, 21); /* sizeof(long long) == 8; 20 digits + NUL */
+		if(digits)
+			sprintf(digits, "%lld", reply->integer);
+		ret = digits;
+		break;
+	case REDIS_REPLY_NIL:
+		ret = NULL;
+		break;
+	case REDIS_REPLY_STRING:
+		ret = WS_Dup(sp->ws, reply->str);
+		break;
+	case REDIS_REPLY_ARRAY:
+		ret = WS_Dup(sp->ws, "array");
+		break;
+	default:
+		ret = WS_Dup(sp->ws, "unexpected");
+	}
+
+done:
+	if (reply) {
+		freeReplyObject(reply);
+	}
+
+	return ret;
+}

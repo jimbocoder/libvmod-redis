@@ -3,3 +3,6 @@ Init init_function
 Function VOID init_redis(PRIV_VCL, STRING, INT, INT)
 Function VOID send(PRIV_VCL, STRING)
 Function STRING call(PRIV_VCL, STRING)
+Function VOID pipeline(PRIV_VCL)
+Function VOID push(PRIV_VCL, STRING)
+Function STRING pop(PRIV_VCL)
