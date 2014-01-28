@@ -73,9 +73,10 @@ See the [`examples/`](/examples) directory.
 Dependencies
 ------------
 
-* [hiredis](https://github.com/redis/hiredis) - minimalistic C client for Redis
+* [hiredis](https://github.com/redis/hiredis) - minimalistic C client for Redis (`libhiredis-dev` on Ubuntu)
 * automake
 * autoconf
+* libtool
 
 Installation
 ------------
