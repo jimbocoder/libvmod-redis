@@ -1,0 +1,30 @@
+varnishtest "Test set/get data"
+
+server s1 {
+       rxreq
+       txresp
+} -start
+
+varnish v1 -vcl+backend {
+import redis from "${vmod_topbuild}/src/.libs/libvmod_redis.so";
+
+sub vcl_recv {
+  redis.init_redis("localhost", 6379, 200);
+  set req.http.X-REDIS-FOO-SET = redis.call("SET foo:bar 123");
+  set req.http.X-REDIS-FOO-GET = redis.call("GET foo:bar");
+}
+
+sub vcl_deliver {
+  set resp.http.X-REDIS-FOO-GET = req.http.X-REDIS-FOO-GET;
+
+  return (deliver);
+}
+} -start
+
+client c1 {
+txreq -url "/"
+rxresp
+expect resp.http.X-REDIS-FOO-GET == "123"
+}
+
+client c1 -run

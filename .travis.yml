@@ -1,0 +1,20 @@
+language: c
+
+before_install:
+ - sudo apt-get install -qq python-docutils libhiredis-dev
+
+services:
+  - redis-server
+
+before_script:
+  - apt-get source -q varnish
+  - cd varnish*
+  - ./configure
+  - make
+  - cd ..
+  - ./autogen.sh
+  - ./configure VARNISHSRC=varnish* VMODDIR=`pwd`
+  - make
+
+script:
+  - make check

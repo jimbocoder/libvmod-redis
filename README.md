@@ -1,4 +1,4 @@
-vmod_redis
+vmod_redis [![Build Status](https://travis-ci.org/brandonwamboldt/libvmod-redis.png?branch=master)](https://travis-ci.org/brandonwamboldt/libvmod-redis)
 ==========
 
 A Varnish module that allows sending commands to redis from the VCL.

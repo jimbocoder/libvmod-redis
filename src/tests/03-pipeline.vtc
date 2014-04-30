@@ -1,0 +1,32 @@
+varnishtest "Test set/get data"
+
+server s1 {
+       rxreq
+       txresp
+} -start
+
+varnish v1 -vcl+backend {
+import redis from "${vmod_topbuild}/src/.libs/libvmod_redis.so";
+
+sub vcl_recv {
+  redis.init_redis("localhost", 6379, 200);
+  redis.pipeline();
+  redis.push("SET foo:incr 5");
+  redis.push("INCR foo:incr");
+}
+
+sub vcl_deliver {
+  set resp.http.X-REDIS-FOO-SET = redis.pop();
+  set resp.http.X-REDIS-FOO-INCR = redis.pop();
+
+  return (deliver);
+}
+} -start
+
+client c1 {
+txreq -url "/"
+rxresp
+expect resp.http.X-REDIS-FOO-INCR == "6"
+}
+
+client c1 -run
