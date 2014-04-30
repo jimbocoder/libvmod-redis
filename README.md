@@ -1,13 +1,7 @@
 vmod_redis [![Build Status](https://travis-ci.org/brandonwamboldt/libvmod-redis.png?branch=master)](https://travis-ci.org/brandonwamboldt/libvmod-redis)
 ==========
 
-A Varnish module that allows sending commands to redis from the VCL.
-
-This extension is mostly a proof-of-concept; it has only received minimal testing. However, I do run this in production for a heavy traffic website, and except for the expected slowdown when calling Redis, I've had no other issues.
-
-At the very minimum, it will slow down Varnish a fair amount (at least a few milliseconds per request, depending on how fast your network and your redis server are).
-
-So far the module builds and runs on FreeBSD and Linux (tested on CentOS and Ubuntu).
+A Varnish module that allows sending commands to redis from your VCL, as well as retrieving data.
 
 Usage
 -----
