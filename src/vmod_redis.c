@@ -126,7 +126,7 @@ static redisReply *redis_common(struct sess *sp, struct vmod_priv *priv, const c
     redisContext *c = redis_connect(cfg);
 
     if (c != NULL) {
-        redisReply *reply = redisCommand(c, "%s", command);
+        redisReply *reply = redisCommand(c, command);
 
         if (reply == NULL) {
             LOG_E("redis error (command): err=%d errstr=%s\n", c->err, c->errstr);
