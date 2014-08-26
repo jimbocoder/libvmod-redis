@@ -226,7 +226,7 @@ vmod_pop(const struct vrt_ctx* ctx, struct vmod_priv *priv)
     if (c == NULL) {
         goto done;
     } else {
-        redisGetReply(c, &reply);
+        redisGetReply(c, (void**)&reply);
     }
 
     if (reply == NULL) {
