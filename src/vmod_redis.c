@@ -5,9 +5,9 @@
 #include <pthread.h>
 #include <hiredis/hiredis.h>
 
-#include "vcc_if.h"
 #include "vrt.h"
-#include "bin/varnishd/cache.h"
+#include "cache/cache.h"
+#include "vcc_if.h"
 
 #define REDIS_TIMEOUT_MS    200
 #define REDIS_DEFAULT_PORT  6379
@@ -90,7 +90,8 @@ int init_function(struct vmod_priv *priv, const struct VCL_conf *conf)
     return (0);
 }
 
-void vmod_init_redis(struct sess *sp, struct vmod_priv *priv, const char *host, int port, int timeout_ms)
+VCL_VOID
+vmod_init_redis(const struct vrt_ctx* ctx, struct vmod_priv *priv, VCL_STRING host, VCL_INT port, VCL_INT timeout_ms)
 {
     config_t *old_cfg = priv->priv;
 
@@ -120,7 +121,7 @@ static redisContext *redis_connect(config_t *cfg)
     return c;
 }
 
-static redisReply *redis_common(struct sess *sp, struct vmod_priv *priv, const char *command)
+static redisReply *redis_common(const struct vrt_ctx* ctx, struct vmod_priv *priv, const char *command)
 {
     config_t *cfg = priv->priv;
     redisContext *c = redis_connect(cfg);
@@ -138,22 +139,24 @@ static redisReply *redis_common(struct sess *sp, struct vmod_priv *priv, const c
     return NULL;
 }
 
-void vmod_send(struct sess *sp, struct vmod_priv *priv, const char *command)
+VCL_VOID
+vmod_send(const struct vrt_ctx* ctx, struct vmod_priv *priv, VCL_STRING command)
 {
-    redisReply *reply = redis_common(sp, priv, command);
+    redisReply *reply = redis_common(ctx, priv, command);
 
     if (reply != NULL) {
         freeReplyObject(reply);
     }
 }
 
-const char *vmod_call(struct sess *sp, struct vmod_priv *priv, const char *command)
+VCL_STRING
+vmod_call(const struct vrt_ctx* ctx, struct vmod_priv *priv, const char *command)
 {
     redisReply *reply = NULL;
     const char *ret = NULL;
     char *digits;
 
-    reply = redis_common(sp, priv, command);
+    reply = redis_common(ctx, priv, command);
 
     if (reply == NULL) {
         goto done;
@@ -161,13 +164,13 @@ const char *vmod_call(struct sess *sp, struct vmod_priv *priv, const char *comma
 
     switch (reply->type) {
         case REDIS_REPLY_STATUS:
-            ret = WS_Dup(sp->ws, reply->str);
+            ret = WS_Printf(ctx->ws, "%s", reply->str);
             break;
         case REDIS_REPLY_ERROR:
-            ret = WS_Dup(sp->ws, reply->str);
+            ret = WS_Printf(ctx->ws, "%s", reply->str);
             break;
         case REDIS_REPLY_INTEGER:
-            digits = WS_Alloc(sp->ws, 21); /* sizeof(long long) == 8; 20 digits + NUL */
+            digits = WS_Alloc(ctx->ws, 21); /* sizeof(long long) == 8; 20 digits + NUL */
             if (digits) {
                 sprintf(digits, "%lld", reply->integer);
             }
@@ -177,13 +180,13 @@ const char *vmod_call(struct sess *sp, struct vmod_priv *priv, const char *comma
             ret = NULL;
             break;
         case REDIS_REPLY_STRING:
-            ret = WS_Dup(sp->ws, reply->str);
+            ret = WS_Printf(ctx->ws, "%s", reply->str);
             break;
         case REDIS_REPLY_ARRAY:
-            ret = WS_Dup(sp->ws, "array");
+            ret = WS_Printf(ctx->ws, "%s", "array");
             break;
         default:
-            ret = WS_Dup(sp->ws, "unexpected");
+            ret = WS_Printf(ctx->ws, "%s", "unexpected");
     }
 
 done:
@@ -194,12 +197,14 @@ done:
     return ret;
 }
 
-void vmod_pipeline(struct sess *sp, struct vmod_priv *priv)
+VCL_VOID
+vmod_pipeline(const struct vrt_ctx* ctx, struct vmod_priv *priv)
 {
     redis_connect(priv->priv);
 }
 
-void vmod_push(struct sess *sp, struct vmod_priv *priv, const char *command)
+VCL_VOID
+vmod_push(const struct vrt_ctx* ctx, struct vmod_priv *priv, const char *command)
 {
     redisContext *c = pthread_getspecific(thread_key);
 
@@ -208,7 +213,8 @@ void vmod_push(struct sess *sp, struct vmod_priv *priv, const char *command)
     }
 }
 
-const char *vmod_pop(struct sess *sp, struct vmod_priv *priv)
+VCL_STRING
+vmod_pop(const struct vrt_ctx* ctx, struct vmod_priv *priv)
 {
     redisReply *reply;
     const char *ret = NULL;
@@ -230,13 +236,13 @@ const char *vmod_pop(struct sess *sp, struct vmod_priv *priv)
 
     switch (reply->type) {
         case REDIS_REPLY_STATUS:
-            ret = WS_Dup(sp->ws, reply->str);
+            ret = WS_Printf(ctx->ws, "%s", reply->str);
             break;
         case REDIS_REPLY_ERROR:
-            ret = WS_Dup(sp->ws, reply->str);
+            ret = WS_Printf(ctx->ws, "%s", reply->str);
             break;
         case REDIS_REPLY_INTEGER:
-            digits = WS_Alloc(sp->ws, 21); /* sizeof(long long) == 8; 20 digits + NUL */
+            digits = WS_Alloc(ctx->ws, 21); /* sizeof(long long) == 8; 20 digits + NUL */
             if(digits)
                 sprintf(digits, "%lld", reply->integer);
             ret = digits;
@@ -245,13 +251,13 @@ const char *vmod_pop(struct sess *sp, struct vmod_priv *priv)
             ret = NULL;
             break;
         case REDIS_REPLY_STRING:
-            ret = WS_Dup(sp->ws, reply->str);
+            ret = WS_Printf(ctx->ws, "%s", reply->str);
             break;
         case REDIS_REPLY_ARRAY:
-            ret = WS_Dup(sp->ws, "array");
+            ret = WS_Printf(ctx->ws, "%s", "array");
             break;
         default:
-            ret = WS_Dup(sp->ws, "unexpected");
+            ret = WS_Printf(ctx->ws, "%s", "unexpected");
     }
 
 done:
